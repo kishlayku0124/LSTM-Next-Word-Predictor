@@ -1,22 +1,30 @@
 
+import re
+import pickle
+
+import numpy as np
 import streamlit as st
 import tensorflow as tf
-import numpy as np
-import pickle
-import re
 
 # ============================================================
-# PAGE CONFIG
+# CONFIG
 # ============================================================
+APP_NAME = "LSTM Next Word Predictor"
+GITHUB_URL = "https://github.com/kishlayku0124/LSTM-Next-Word-Predictor"
+
+MODEL_FILE = "lstm_model (1).h5"
+TOKENIZER_FILE = "tokenizer.pkl"
+MAX_LEN_FILE = "max_len.pkl"
+
 st.set_page_config(
-    page_title="NeuraNext — LSTM Word Predictor",
+    page_title=APP_NAME,
     page_icon="🧠",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
 # ============================================================
-# CUSTOM CSS
+# STYLE
 # ============================================================
 st.markdown("""
 <style>
@@ -26,293 +34,265 @@ st.markdown("""
 
 .stApp {
     background:
-        radial-gradient(circle at 8% 8%, rgba(124, 92, 255, .16), transparent 28%),
-        radial-gradient(circle at 92% 18%, rgba(0, 212, 255, .10), transparent 25%),
+        radial-gradient(circle at 8% 5%, rgba(124,92,255,.18), transparent 28%),
+        radial-gradient(circle at 92% 10%, rgba(34,211,238,.10), transparent 24%),
         #070a12;
     color: #f5f7ff;
 }
 
 .block-container {
-    max-width: 1180px;
-    padding-top: 2.2rem;
+    max-width: 1220px;
+    padding-top: 1.5rem;
     padding-bottom: 3rem;
 }
 
-.hero {
-    text-align: center;
-    padding: 25px 0 32px;
-}
-
+.hero { padding: 20px 0 25px; }
 .badge {
     display: inline-block;
     padding: 7px 14px;
-    border: 1px solid rgba(139, 92, 246, .35);
+    border: 1px solid rgba(139,92,246,.35);
     border-radius: 999px;
-    background: rgba(139, 92, 246, .10);
+    background: rgba(139,92,246,.10);
     color: #c4b5fd;
-    font-size: .82rem;
-    font-weight: 600;
-    margin-bottom: 15px;
+    font-size: .78rem;
+    font-weight: 700;
+    margin-bottom: 14px;
 }
-
 .hero h1 {
-    font-size: clamp(2.5rem, 6vw, 4.5rem);
+    font-size: clamp(2.4rem, 5vw, 4.2rem);
     line-height: 1;
     margin: 0;
     font-weight: 800;
-    letter-spacing: -2px;
-    background: linear-gradient(100deg, #ffffff 15%, #a78bfa 48%, #67e8f9 90%);
+    letter-spacing: -2.5px;
+    background: linear-gradient(100deg,#fff 10%,#a78bfa 48%,#67e8f9 92%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
-
-.hero p {
-    color: #929ab0;
-    font-size: 1.05rem;
-    margin-top: 16px;
-}
+.hero p { color:#929ab0; font-size:1.02rem; margin-top:14px; }
 
 .card {
-    background: rgba(15, 20, 33, .78);
+    background: rgba(15,20,33,.80);
     border: 1px solid rgba(255,255,255,.075);
     border-radius: 22px;
     padding: 24px;
     box-shadow: 0 18px 55px rgba(0,0,0,.22);
 }
 
-.section-title {
-    font-size: 1.15rem;
-    font-weight: 700;
-    margin-bottom: 5px;
-}
-
-.muted {
-    color: #8e97ab;
-    font-size: .9rem;
-}
-
-.prediction-main {
-    background: linear-gradient(135deg, rgba(124,92,255,.18), rgba(34,211,238,.08));
-    border: 1px solid rgba(167,139,250,.24);
-    border-radius: 20px;
-    padding: 25px;
-    text-align: center;
-    min-height: 185px;
-}
-
-.pred-label {
-    color: #9ca5ba;
-    font-size: .82rem;
-    text-transform: uppercase;
-    letter-spacing: 1.4px;
-}
-
-.pred-word {
-    font-size: 2.55rem;
-    font-weight: 800;
-    color: #c4b5fd;
-    margin: 15px 0 8px;
-    word-break: break-word;
-}
-
-.conf {
-    color: #9ca5ba;
-    font-size: .9rem;
-}
-
-.generated {
-    background: #0a0e18;
-    border: 1px solid rgba(255,255,255,.07);
-    border-left: 4px solid #8b5cf6;
-    border-radius: 15px;
-    padding: 20px;
-    line-height: 1.85;
-    font-size: 1.04rem;
-    color: #e8ebf5;
-}
+.section-title { font-size:1.12rem; font-weight:750; margin-bottom:5px; }
+.muted { color:#8e97ab; font-size:.88rem; }
 
 .metric {
     background: rgba(255,255,255,.035);
     border: 1px solid rgba(255,255,255,.06);
     border-radius: 15px;
     padding: 15px;
-    text-align: center;
+    text-align:center;
+}
+.metric .value { font-size:1.35rem; font-weight:800; color:#c4b5fd; }
+.metric .label { color:#7f889c; font-size:.72rem; margin-top:4px; }
+
+.prediction-main {
+    background: linear-gradient(135deg,rgba(124,92,255,.18),rgba(34,211,238,.08));
+    border: 1px solid rgba(167,139,250,.24);
+    border-radius: 20px;
+    padding: 25px;
+    text-align:center;
+    min-height:185px;
+}
+.pred-label {
+    color:#9ca5ba;
+    font-size:.78rem;
+    text-transform:uppercase;
+    letter-spacing:1.4px;
+}
+.pred-word {
+    font-size:2.55rem;
+    font-weight:800;
+    color:#c4b5fd;
+    margin:15px 0 8px;
+    word-break:break-word;
+}
+.conf { color:#9ca5ba; font-size:.9rem; }
+
+.generated {
+    background:#0a0e18;
+    border:1px solid rgba(255,255,255,.07);
+    border-left:4px solid #8b5cf6;
+    border-radius:15px;
+    padding:20px;
+    line-height:1.85;
+    font-size:1.04rem;
 }
 
-.metric .value {
-    font-size: 1.45rem;
-    font-weight: 750;
-    color: #c4b5fd;
+.arch-wrap {
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+    flex-wrap:wrap;
+    padding:18px 5px 5px;
 }
+.arch-box {
+    min-width:145px;
+    padding:16px 14px;
+    text-align:center;
+    border-radius:16px;
+    border:1px solid rgba(167,139,250,.24);
+    background:linear-gradient(145deg,rgba(124,92,255,.16),rgba(34,211,238,.05));
+}
+.arch-box .title { font-weight:750; }
+.arch-box .sub { color:#858ea3; font-size:.75rem; margin-top:4px; }
+.arch-arrow { color:#8b7cf6; font-size:1.35rem; font-weight:800; }
 
-.metric .label {
-    color: #7f889c;
-    font-size: .76rem;
-    margin-top: 4px;
+.feature-card {
+    height:100%;
+    padding:18px;
+    border-radius:17px;
+    background:rgba(255,255,255,.025);
+    border:1px solid rgba(255,255,255,.06);
 }
+.feature-card .icon { font-size:1.5rem; }
+.feature-card .title { font-weight:750; margin-top:8px; }
+.feature-card .text { color:#8e97ab; font-size:.82rem; line-height:1.55; margin-top:5px; }
 
 div[data-testid="stTextArea"] textarea,
 div[data-testid="stTextInput"] input {
-    background: #0a0e18 !important;
-    color: #f5f7ff !important;
-    border: 1px solid rgba(255,255,255,.09) !important;
-    border-radius: 13px !important;
+    background:#0a0e18 !important;
+    color:#f5f7ff !important;
+    border:1px solid rgba(255,255,255,.09) !important;
+    border-radius:13px !important;
 }
 
 .stButton > button {
-    border: 0 !important;
-    border-radius: 13px !important;
-    min-height: 45px;
-    font-weight: 700 !important;
-    background: linear-gradient(100deg, #7c5cff, #6d5dfc) !important;
-    color: white !important;
-    box-shadow: 0 9px 25px rgba(124,92,255,.18);
+    border:0 !important;
+    border-radius:13px !important;
+    min-height:45px;
+    font-weight:700 !important;
+    background:linear-gradient(100deg,#7c5cff,#6d5dfc) !important;
+    color:white !important;
+    box-shadow:0 9px 25px rgba(124,92,255,.18);
 }
-
-.stButton > button:hover {
-    filter: brightness(1.08);
-    transform: translateY(-1px);
-}
+.stButton > button:hover { filter:brightness(1.08); transform:translateY(-1px); }
 
 div[data-testid="stSidebar"] {
-    background: #080c15;
-    border-right: 1px solid rgba(255,255,255,.06);
+    background:#080c15;
+    border-right:1px solid rgba(255,255,255,.06);
 }
-
-div[data-testid="stProgressBar"] > div > div {
-    border-radius: 999px;
-}
-
-hr {
-    border-color: rgba(255,255,255,.07) !important;
-}
-
-.footer {
-    text-align: center;
-    color: #626b7e;
-    padding: 25px 0 5px;
-    font-size: .82rem;
-}
+hr { border-color:rgba(255,255,255,.07) !important; }
+.footer { text-align:center; color:#626b7e; padding:28px 0 5px; font-size:.8rem; }
 </style>
 """, unsafe_allow_html=True)
 
 # ============================================================
-# FILES
-# ============================================================
-MODEL_FILE = "lstm_model (1).h5"
-TOKENIZER_FILE = "tokenizer.pkl"
-MAX_LEN_FILE = "max_len.pkl"
-
-# ============================================================
-# LOAD ARTIFACTS
+# LOAD MODEL
 # ============================================================
 @st.cache_resource(show_spinner="Loading your LSTM model...")
 def load_artifacts():
     model = tf.keras.models.load_model(MODEL_FILE, compile=False)
-
     with open(TOKENIZER_FILE, "rb") as f:
         tokenizer = pickle.load(f)
-
     with open(MAX_LEN_FILE, "rb") as f:
         max_len = int(pickle.load(f))
-
     return model, tokenizer, max_len
-
 
 try:
     model, tokenizer, max_len = load_artifacts()
-    MODEL_READY = True
-except Exception as e:
-    MODEL_READY = False
+except Exception as exc:
     st.error("Could not load the model artifacts.")
-    st.code(str(e))
+    st.code(str(exc))
     st.stop()
 
-# ============================================================
-# TOKEN / WORD HELPERS
-# ============================================================
 index_to_word = {idx: word for word, idx in tokenizer.word_index.items()}
+vocab_size = len(tokenizer.word_index)
 
+try:
+    lstm_layers = [x for x in model.layers if isinstance(x, tf.keras.layers.LSTM)]
+    lstm_units = int(lstm_layers[0].units) if lstm_layers else None
+except Exception:
+    lstm_units = None
+
+# ============================================================
+# HELPERS
+# ============================================================
 def normalize_text(text):
-    return re.sub(r"\s+", " ", text.strip())
+    return re.sub(r"\s+", " ", str(text).strip())
 
 def prepare_sequence(text):
     seq = tokenizer.texts_to_sequences([text])[0]
-
     if not seq:
         return None
-
-    # The model was trained with max_len=745.
-    # For next-word prediction, preserve the latest context.
     seq = seq[-(max_len - 1):]
-
     return tf.keras.preprocessing.sequence.pad_sequences(
         [seq],
         maxlen=max_len - 1,
         padding="pre",
-        truncating="pre"
+        truncating="pre",
     )
 
 def predict_top_words(text, top_k=5, temperature=1.0):
     sequence = prepare_sequence(text)
-
     if sequence is None:
         return []
 
     probs = model.predict(sequence, verbose=0)[0].astype(np.float64)
-
-    # Numerical safety
     probs = np.maximum(probs, 1e-12)
 
-    # Optional temperature scaling for the displayed/generated distribution
     if temperature != 1.0:
         logits = np.log(probs) / temperature
         logits -= np.max(logits)
         probs = np.exp(logits)
         probs /= np.sum(probs)
 
-    # Ignore index 0 (padding / unknown output slot)
     probs[0] = 0
-
     top_indices = np.argsort(probs)[-top_k:][::-1]
 
     results = []
     for idx in top_indices:
-        idx = int(idx)
-        word = index_to_word.get(idx)
-
+        word = index_to_word.get(int(idx))
         if word:
             results.append((word, float(probs[idx])))
-
     return results
 
-def predict_next_word(text, temperature=1.0):
-    results = predict_top_words(text, top_k=5, temperature=temperature)
-    return results[0] if results else (None, 0.0)
-
-def generate_text(seed, number_of_words, temperature=1.0):
+def generate_text(seed, number_of_words, temperature):
     generated = normalize_text(seed)
-
     for _ in range(number_of_words):
-        word, probability = predict_next_word(generated, temperature)
-
-        if not word:
+        results = predict_top_words(generated, top_k=1, temperature=temperature)
+        if not results:
             break
-
-        generated += " " + word
-
+        generated += " " + results[0][0]
     return generated
+
+# ============================================================
+# SESSION STATE
+# ============================================================
+defaults = {
+    "sentence_input": "",
+    "prediction_results": None,
+    "prediction_source": "",
+    "generated_text": None,
+    "generation_prompt": "",
+}
+for key, value in defaults.items():
+    if key not in st.session_state:
+        st.session_state[key] = value
 
 # ============================================================
 # HERO
 # ============================================================
-st.markdown("""
-<div class="hero">
-    <div class="badge">● LSTM LANGUAGE MODEL • ONLINE</div>
-    <h1>NeuraNext</h1>
-    <p>Predict what comes next. Generate what comes after.</p>
-</div>
-""", unsafe_allow_html=True)
+hero_left, hero_right = st.columns([5, 1.3])
+
+with hero_left:
+    st.markdown("""
+    <div class="hero">
+        <div class="badge">● LSTM LANGUAGE MODEL • ONLINE</div>
+        <h1>LSTM Next Word Predictor</h1>
+        <p>Predict what comes next. Generate what comes after.</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+with hero_right:
+    st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+    st.link_button("⭐ View on GitHub", GITHUB_URL, use_container_width=True)
 
 # ============================================================
 # SIDEBAR
@@ -322,7 +302,6 @@ with st.sidebar:
     st.success("Model loaded")
 
     st.markdown("---")
-
     st.markdown("**Architecture**")
     st.write("Embedding → LSTM → Dense")
 
@@ -330,237 +309,289 @@ with st.sidebar:
     st.write(f"{max_len} tokens")
 
     st.markdown("**Vocabulary**")
-    st.write(f"{len(tokenizer.word_index):,} words")
+    st.write(f"{vocab_size:,} words")
 
     st.markdown("**LSTM units**")
-    try:
-        lstm_layers = [layer for layer in model.layers if isinstance(layer, tf.keras.layers.LSTM)]
-        st.write(f"{lstm_layers[0].units:,}" if lstm_layers else "Detected")
-    except Exception:
-        st.write("Detected")
+    st.write(f"{lstm_units:,}" if lstm_units else "Detected")
 
     st.markdown("---")
     st.markdown("### 💡 Tips")
     st.write(
-        "Use a sentence containing words from the model's training vocabulary. "
-        "Longer context generally gives the model more information."
+        "Use words from the model's training vocabulary. "
+        "Longer context can give the LSTM more information."
     )
 
+    st.markdown("---")
+    st.markdown("### 🔗 Project")
+    st.link_button("Open GitHub Repository", GITHUB_URL, use_container_width=True)
+
 # ============================================================
-# MAIN INPUT
+# QUICK STATS
 # ============================================================
-st.markdown('<div class="card">', unsafe_allow_html=True)
-st.markdown('<div class="section-title">✍️ Enter your sentence</div>', unsafe_allow_html=True)
+st.markdown("### ⚡ Model at a glance")
+q1, q2, q3, q4 = st.columns(4)
+stats = [
+    (q1, f"{vocab_size:,}", "Vocabulary"),
+    (q2, str(max_len), "Max sequence"),
+    (q3, f"{lstm_units:,}" if lstm_units else "—", "LSTM units"),
+    (q4, "Top 5", "Predictions"),
+]
+for col, value, label in stats:
+    with col:
+        st.markdown(
+            f'<div class="metric"><div class="value">{value}</div>'
+            f'<div class="label">{label}</div></div>',
+            unsafe_allow_html=True,
+        )
+
+# ============================================================
+# INPUT
+# ============================================================
+st.markdown("<br>", unsafe_allow_html=True)
+st.markdown("<div class='card'>", unsafe_allow_html=True)
+st.markdown("<div class='section-title'>✍️ Enter your sentence</div>", unsafe_allow_html=True)
 st.markdown(
-    '<div class="muted">The model will use the latest context to predict the next word.</div>',
-    unsafe_allow_html=True
+    "<div class='muted'>The model uses the latest context to predict the next word.</div>",
+    unsafe_allow_html=True,
 )
 
 sentence = st.text_area(
     "Sentence",
-    placeholder="Example: The future of artificial intelligence is...",
-    height=125,
+    placeholder="Example: The future of artificial intelligence is",
+    height=120,
     label_visibility="collapsed",
+    key="sentence_input",
 )
 
-col_a, col_b, col_c = st.columns([1, 1, 1])
-
-with col_a:
+b1, b2, b3 = st.columns(3)
+with b1:
     predict_clicked = st.button("🔮 Predict Next Word", use_container_width=True)
-
-with col_b:
-    example_clicked = st.button("💡 Try an Example", use_container_width=True)
-
-with col_c:
+with b2:
+    example_clicked = st.button("💡 Load Example", use_container_width=True)
+with b3:
     clear_clicked = st.button("↺ Clear", use_container_width=True)
 
 st.markdown("</div>", unsafe_allow_html=True)
 
 if example_clicked:
-    sentence = "The future of artificial intelligence"
-    st.session_state["example_sentence"] = sentence
+    st.session_state.sentence_input = "The future of artificial intelligence"
+    st.session_state.prediction_results = None
     st.rerun()
-
-if "example_sentence" in st.session_state and not predict_clicked:
-    sentence = st.session_state["example_sentence"]
 
 if clear_clicked:
-    st.session_state.pop("example_sentence", None)
+    st.session_state.sentence_input = ""
+    st.session_state.prediction_results = None
+    st.session_state.generated_text = None
     st.rerun()
 
-# ============================================================
-# TEMPERATURE
-# ============================================================
-temp_col1, temp_col2 = st.columns([2.2, 1])
-
-with temp_col1:
+t1, t2 = st.columns([2.2, 1])
+with t1:
     temperature = st.slider(
         "🎛️ Prediction temperature",
         min_value=0.5,
         max_value=1.5,
         value=1.0,
         step=0.05,
-        help="Lower = safer/more focused predictions. Higher = more varied predictions."
+        help="Lower = more focused. Higher = more varied.",
     )
-
-with temp_col2:
+with t2:
     st.markdown(
-        '<div class="metric"><div class="value">745</div>'
-        '<div class="label">MAX TOKENS</div></div>',
-        unsafe_allow_html=True
+        f'<div class="metric"><div class="value">{max_len}</div>'
+        f'<div class="label">MAX TOKENS</div></div>',
+        unsafe_allow_html=True,
     )
 
-# ============================================================
-# PREDICTION RESULT
-# ============================================================
 if predict_clicked:
-    sentence = normalize_text(sentence)
-
-    if not sentence:
+    clean = normalize_text(sentence)
+    if not clean:
         st.warning("Please enter a sentence first.")
     else:
-        results = predict_top_words(sentence, top_k=5, temperature=temperature)
-
+        results = predict_top_words(clean, 5, temperature)
         if not results:
-            st.warning(
-                "The tokenizer did not recognize any words in this input. "
-                "Try another sentence."
-            )
+            st.warning("No known vocabulary words were detected. Try another sentence.")
         else:
-            top_word, top_prob = results[0]
-
-            st.markdown("<br>", unsafe_allow_html=True)
-
-            left, right = st.columns([1, 1.15])
-
-            with left:
-                st.markdown(
-                    f"""
-                    <div class="prediction-main">
-                        <div class="pred-label">Predicted next word</div>
-                        <div class="pred-word">{top_word}</div>
-                        <div class="conf">{top_prob * 100:.2f}% confidence</div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
-                st.progress(min(float(top_prob), 1.0))
-
-            with right:
-                st.markdown(
-                    '<div class="card" style="padding:20px;">'
-                    '<div class="section-title">📊 Top 5 predictions</div>',
-                    unsafe_allow_html=True
-                )
-
-                for rank, (word, prob) in enumerate(results, start=1):
-                    c1, c2 = st.columns([2.2, 1])
-                    with c1:
-                        st.markdown(f"**{rank}. {word}**")
-                    with c2:
-                        st.markdown(
-                            f"<div style='text-align:right;color:#a78bfa;'>"
-                            f"{prob*100:.2f}%</div>",
-                            unsafe_allow_html=True
-                        )
-                    st.progress(min(float(prob), 1.0))
-
-                st.markdown("</div>", unsafe_allow_html=True)
+            st.session_state.prediction_results = results
+            st.session_state.prediction_source = clean
 
 # ============================================================
-# TEXT GENERATION
+# RESULTS
+# ============================================================
+if st.session_state.prediction_results:
+    results = st.session_state.prediction_results
+    top_word, top_prob = results[0]
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("### 🎯 Prediction")
+
+    left, right = st.columns([1, 1.15])
+
+    with left:
+        st.markdown(
+            f"""
+            <div class="prediction-main">
+                <div class="pred-label">Predicted next word</div>
+                <div class="pred-word">{top_word}</div>
+                <div class="conf">{top_prob * 100:.2f}% model probability</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.progress(min(float(top_prob), 1.0))
+
+    with right:
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+        st.markdown("<div class='section-title'>📊 Top 5 candidates</div>", unsafe_allow_html=True)
+
+        for rank, (word, prob) in enumerate(results, 1):
+            c1, c2 = st.columns([2.2, 1])
+            with c1:
+                st.markdown(f"**{rank}. {word}**")
+            with c2:
+                st.markdown(
+                    f"<div style='text-align:right;color:#a78bfa'>{prob*100:.2f}%</div>",
+                    unsafe_allow_html=True,
+                )
+            st.progress(min(float(prob), 1.0))
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+# ============================================================
+# GENERATION
 # ============================================================
 st.markdown("<br>", unsafe_allow_html=True)
+st.markdown("### ✨ Generate a continuation")
 st.markdown(
-    '<div class="card">'
-    '<div class="section-title">✨ Continue the sentence</div>'
-    '<div class="muted">Generate multiple words using the model one prediction at a time.</div>'
-    '</div>',
-    unsafe_allow_html=True
+    "<div class='muted'>Generate multiple words by feeding each prediction back into the LSTM.</div>",
+    unsafe_allow_html=True,
 )
 
-gen_input = st.text_input(
-    "Generation prompt",
-    value=sentence if sentence else "",
-    placeholder="Start with: Once upon a time...",
-    label_visibility="collapsed"
-)
-
-g1, g2, g3 = st.columns([2, 1, 1])
-
+g1, g2 = st.columns([3, 1])
 with g1:
-    word_count = st.slider("Words to generate", 1, 30, 10)
-
+    generation_prompt = st.text_input(
+        "Generation prompt",
+        value=st.session_state.generation_prompt,
+        placeholder="Start with: Once upon a time",
+        label_visibility="collapsed",
+        key="generation_input",
+    )
 with g2:
-    generate_clicked = st.button("✨ Generate", use_container_width=True)
+    word_count = st.slider("Words", 1, 30, 10)
 
-with g3:
-    use_prediction = st.button("↗ Use above sentence", use_container_width=True)
+if st.session_state.prediction_source:
+    if st.button("↗ Use prediction sentence as generation prompt", use_container_width=True):
+        st.session_state.generation_prompt = st.session_state.prediction_source
+        st.rerun()
 
-if use_prediction and sentence:
-    st.session_state["generation_prompt"] = sentence
-    st.rerun()
-
-if "generation_prompt" in st.session_state:
-    gen_input = st.session_state["generation_prompt"]
-
-if generate_clicked:
-    if not normalize_text(gen_input):
-        st.warning("Enter a starting sentence.")
+if st.button("✨ Generate Text", use_container_width=True):
+    prompt = normalize_text(generation_prompt)
+    if not prompt:
+        st.warning("Enter a starting sentence first.")
     else:
-        with st.spinner("Your LSTM is generating..."):
-            generated = generate_text(
-                gen_input,
-                word_count,
-                temperature
+        with st.spinner("Generating with the LSTM..."):
+            st.session_state.generated_text = generate_text(
+                prompt, word_count, temperature
             )
 
-        st.markdown(
-            f'<div class="generated">{generated}</div>',
-            unsafe_allow_html=True
-        )
-
-        st.download_button(
-            "⬇️ Download generated text",
-            data=generated,
-            file_name="generated_text.txt",
-            mime="text/plain",
-            use_container_width=True
-        )
+if st.session_state.generated_text:
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown(
+        f"<div class='generated'>{st.session_state.generated_text}</div>",
+        unsafe_allow_html=True,
+    )
+    st.download_button(
+        "⬇️ Download Generated Text",
+        st.session_state.generated_text,
+        "lstm_generated_text.txt",
+        "text/plain",
+        use_container_width=True,
+    )
 
 # ============================================================
-# MODEL STATS
+# ARCHITECTURE VISUALIZATION
 # ============================================================
 st.markdown("<br>", unsafe_allow_html=True)
-st.markdown("### 📌 Model statistics")
+st.markdown("### 🧩 Model architecture")
+st.markdown(
+    f"""
+    <div class="card">
+        <div class="arch-wrap">
+            <div class="arch-box">
+                <div class="title">Tokenization</div>
+                <div class="sub">Keras Tokenizer</div>
+            </div>
+            <div class="arch-arrow">→</div>
+            <div class="arch-box">
+                <div class="title">Embedding</div>
+                <div class="sub">50-dimensional vectors</div>
+            </div>
+            <div class="arch-arrow">→</div>
+            <div class="arch-box">
+                <div class="title">LSTM</div>
+                <div class="sub">{lstm_units or 'Detected'} units</div>
+            </div>
+            <div class="arch-arrow">→</div>
+            <div class="arch-box">
+                <div class="title">Dense + Softmax</div>
+                <div class="sub">Vocabulary probabilities</div>
+            </div>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
-m1, m2, m3, m4 = st.columns(4)
+# ============================================================
+# FEATURES
+# ============================================================
+st.markdown("<br>", unsafe_allow_html=True)
+st.markdown("### 🚀 What you can do")
 
-try:
-    params = model.count_params()
-    param_text = f"{params:,}"
-except Exception:
-    param_text = "—"
-
-stats = [
-    (m1, "10,000", "OUTPUT CLASSES"),
-    (m2, f"{len(tokenizer.word_index):,}", "VOCABULARY"),
-    (m3, str(max_len), "MAX SEQUENCE"),
-    (m4, param_text, "PARAMETERS"),
+f1, f2, f3 = st.columns(3)
+features = [
+    (f1, "🔮", "Next-word prediction",
+     "Get the most likely next word and inspect the top five candidates."),
+    (f2, "✨", "Text generation",
+     "Generate a longer continuation one LSTM prediction at a time."),
+    (f3, "🎛️", "Temperature control",
+     "Adjust the prediction distribution from focused to more varied outputs."),
 ]
 
-for col, value, label in stats:
+for col, icon, title, text in features:
     with col:
         st.markdown(
-            f'<div class="metric"><div class="value">{value}</div>'
-            f'<div class="label">{label}</div></div>',
-            unsafe_allow_html=True
+            f"""
+            <div class="feature-card">
+                <div class="icon">{icon}</div>
+                <div class="title">{title}</div>
+                <div class="text">{text}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
+
+# ============================================================
+# ABOUT
+# ============================================================
+st.markdown("<br>", unsafe_allow_html=True)
+with st.expander("ℹ️ About this project"):
+    st.markdown(
+        """
+        **LSTM Next Word Predictor** is a deep-learning NLP application
+        built with TensorFlow/Keras and Streamlit.
+
+        The saved LSTM model receives tokenized text, processes the latest
+        context, and returns a probability distribution over its vocabulary.
+        The app maps the highest-probability token back to a word.
+
+        **Stack:** Python · TensorFlow/Keras · LSTM · Keras Tokenizer · NumPy · Streamlit
+        """
+    )
+    st.link_button("View source code on GitHub", GITHUB_URL)
 
 # ============================================================
 # FOOTER
 # ============================================================
 st.markdown(
-    '<div class="footer">Built with Python • TensorFlow • LSTM • Streamlit</div>',
-    unsafe_allow_html=True
+    "<div class='footer'>Built with TensorFlow + Streamlit · LSTM Next Word Predictor</div>",
+    unsafe_allow_html=True,
 )

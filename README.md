@@ -89,6 +89,7 @@ Probability:
 
 The application can then use the predicted word as part of the next input to generate a longer continuation.
 
+
 ✨ Text Generation
 The text generation feature works iteratively.
 For example:
@@ -123,6 +124,7 @@ LSTM-Next-Word-Predictor/
 ├── requirements.txt
 └── README.md
 
+
 Files
 app.py
 The Streamlit application containing the UI, model loading, prediction logic, text generation, and styling.
@@ -135,6 +137,7 @@ The maximum sequence length used during model training.
 requirements.txt
 Contains the Python dependencies required to run the application.
 
+
 🛠️ Technologies Used
 - 🐍 Python
 - 🧠 TensorFlow / Keras
@@ -143,6 +146,7 @@ Contains the Python dependencies required to run the application.
 - 📦 NumPy
 - 🗃️ Pickle
 - 🎨 Custom Streamlit CSS
+
 
 💻 Run Locally
 1. Clone the repository
@@ -165,11 +169,13 @@ streamlit run app.py
 
 The application will open in your browser.
 
+
 🌐 Deployment
 This project is deployed using Streamlit Community Cloud.
 Live Application
 👉 https://lstm-next-word-predictorr.streamlit.app/
 The application automatically loads the trained model and supporting files from the GitHub repository.
+
 
 ⚠️ Limitations
 This model is a traditional LSTM language model and has several limitations:
@@ -178,6 +184,7 @@ This model is a traditional LSTM language model and has several limitations:
 - It does not have the contextual understanding of modern Transformer-based models.
 - Words outside the training vocabulary may not be handled well.
 - Longer generated sequences can accumulate prediction errors.
+
 
 🔮 Future Improvements
 Possible improvements include:
@@ -192,6 +199,7 @@ Possible improvements include:
 -  Add Transformer-based prediction
 -  Add model performance metrics
 -  Add dark/light theme switching
+
 
 📚 Learning Outcomes
 This project demonstrates practical implementation of:
@@ -208,9 +216,12 @@ This project demonstrates practical implementation of:
 - Streamlit Application Development
 - Machine Learning Model Deployment
 
+
 👨‍💻 Author
 Kishlay Kumar
-B.Tech Computer Science & Engineering
+I'm currently learning Machine Learning and building projects to improve my Python and ML skills.
+
+If you have any suggestions or feedback, feel free to connect with me.
 
 ⭐ Support
 If you found this project interesting, consider giving the repository a ⭐ on GitHub!

@@ -219,12 +219,15 @@ This project demonstrates practical implementation of:
 
 👨‍💻 Author
 Kishlay Kumar
+
 I'm currently learning Machine Learning and building projects to improve my Python and ML skills.
 
 If you have any suggestions or feedback, feel free to connect with me.
 
 ⭐ Support
+
 If you found this project interesting, consider giving the repository a ⭐ on GitHub!
 
 📄 License
+
 This project is intended for educational and demonstration purposes.

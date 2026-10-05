@@ -43,7 +43,7 @@ The application takes a sentence as input and predicts the most likely next word
 
 The model follows this pipeline:
 
-```text
+
 Input Sentence
       ↓
 Tokenization

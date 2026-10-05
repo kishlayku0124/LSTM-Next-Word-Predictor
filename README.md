@@ -38,7 +38,6 @@ The application takes a sentence as input and predicts the most likely next word
 - 🐙 **GitHub Integration**
   - Direct access to the project's source code.
 
----
 
 ## 🧠 Model Architecture
 
